@@ -9,3 +9,5 @@ edition = "2021"
 hyper = { version = "1.0.0-rc.3", features = ["full"] }
 tokio = { version = "1.27.0", features = ["full"] }
 http-body-util = "0.1.0-rc.2"
+rustls = "0.21.0"
+tokio-rustls = "0.24.0"
