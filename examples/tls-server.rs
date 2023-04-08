@@ -1,103 +1,223 @@
-use futures_util::stream::{Stream, StreamExt, TryStreamExt};
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server};
-use std::convert::Infallible;
-use std::io;
-use std::net::SocketAddr;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_rustls::server::TlsStream;
-use tokio_rustls::TlsAcceptor;
+// Ref: https://github.com/rustls/hyper-rustls/blob/30e2bd676f57c2e2c1105f2747f4e49fc00eee45/examples/server.rs
 
-async fn hello_world(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    Ok(Response::new("Hello, World".into()))
+use core::task::{Context, Poll};
+use futures_util::ready;
+use hyper::server::accept::Accept;
+use hyper::server::conn::{AddrIncoming, AddrStream};
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Method, Request, Response, Server, StatusCode};
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::vec::Vec;
+use std::{env, fs, io, sync};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio_rustls::rustls::ServerConfig;
+
+fn main() {
+    // Serve an echo service over HTTPS, with proper error handling.
+    if let Err(e) = run_server() {
+        eprintln!("FAILED: {}", e);
+        std::process::exit(1);
+    }
 }
 
-fn error(err: String) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::Other, err)
+fn error(err: String) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, err)
 }
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
-    // We'll bind to 127.0.0.1:3000
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+async fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // First parameter is port number (optional, defaults to 1337)
+    let port = match env::args().nth(1) {
+        Some(ref p) => p.to_owned(),
+        None => "1337".to_owned(),
+    };
+    let addr = format!("127.0.0.1:{}", port).parse()?;
 
     // Build TLS configuration.
     let tls_cfg = {
         // Load public certificate.
-        let mut cert_reader = io::BufReader::new(std::fs::File::open("./ssl_certs/server.crt")?);
-        let certs = rustls::internal::pemfile::certs(&mut cert_reader).unwrap();
+        let certs = load_certs("tmp/my-tls.com+2.pem")?;
         // Load private key.
-        let mut key_reader = io::BufReader::new(std::fs::File::open("./ssl_certs/server.key")?);
-        // Load and return a single private key.
-        let mut keys = rustls::internal::pemfile::pkcs8_private_keys(&mut key_reader).unwrap();
+        let key = load_private_key("tmp/my-tls.com+2-key.pem")?;
         // Do not use client certificate authentication.
-        let mut cfg = rustls::ServerConfig::new(rustls::NoClientAuth::new());
-        // Select a certificate to use.
-        cfg.set_single_cert(certs, keys.remove(0)).unwrap();
-        // Configure ALPN to accept HTTP/2, HTTP/1.1 in that order.
-        cfg.set_protocols(&[b"h2".to_vec(), b"http/1.1".to_vec()]);
-        std::sync::Arc::new(cfg)
+        let mut cfg = rustls::ServerConfig::builder()
+            .with_safe_defaults()
+            .with_no_client_auth()
+            .with_single_cert(certs, key)
+            .map_err(|e| error(format!("{}", e)))?;
+        // Configure ALPN to accept HTTP/2, HTTP/1.1, and HTTP/1.0 in that order.
+        cfg.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec(), b"http/1.0".to_vec()];
+        sync::Arc::new(cfg)
     };
 
     // Create a TCP listener via tokio.
-    let mut tcp = TcpListener::bind(&addr).await?;
-    let tls_acceptor = &TlsAcceptor::from(tls_cfg);
-    // Prepare a long-running future stream to accept and serve clients.
-    let incoming_tls_stream = tcp
-        .incoming()
-        .map_err(|e| error(format!("Incoming failed: {:?}", e)))
-        // (base: https://github.com/cloudflare/wrangler/pull/1485/files)
-        .filter_map(|s| async {
-            let client = match s {
-                Ok(x) => x,
-                Err(e) => {
-                    eprintln!("Failed to accept client: {}", e);
-                    return None;
-                }
-            };
-            match tls_acceptor.accept(client).await {
-                Ok(x) => Some(Ok(x)),
-                Err(e) => {
-                    eprintln!("Client connection error: {}", e);
-                    None
-                }
-            }
-        });
+    let incoming = AddrIncoming::bind(&addr)?;
+    let service = make_service_fn(|_| async { Ok::<_, io::Error>(service_fn(echo)) });
+    let server = Server::builder(TlsAcceptor::new(tls_cfg, incoming)).serve(service);
 
-    // A `Service` is needed for every connection, so this
-    // creates one from our `hello_world` function.
-    let make_svc = make_service_fn(|_conn| async {
-        // service_fn converts our function into a `Service`
-        Ok::<_, Infallible>(service_fn(hello_world))
-    });
-
-    let server = Server::builder(HyperAcceptor {
-        acceptor: Box::pin(incoming_tls_stream),
-    })
-        .serve(make_svc);
-
-    // Run this server for... forever!
-    if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
-    }
+    // Run the future, keep going until an error occurs.
+    println!("Starting to serve on https://{}.", addr);
+    server.await?;
     Ok(())
 }
 
-struct HyperAcceptor<S> {
-    acceptor: core::pin::Pin<Box<S>>,
+enum State {
+    Handshaking(tokio_rustls::Accept<AddrStream>),
+    Streaming(tokio_rustls::server::TlsStream<AddrStream>),
 }
 
-impl<S> hyper::server::accept::Accept for HyperAcceptor<S>
-    where
-        S: Stream<Item = Result<TlsStream<TcpStream>, io::Error>>,
-{
-    type Conn = TlsStream<TcpStream>;
+// tokio_rustls::server::TlsStream doesn't expose constructor methods,
+// so we have to TlsAcceptor::accept and handshake to have access to it
+// TlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
+pub struct TlsStream {
+    state: State,
+}
+
+impl TlsStream {
+    fn new(stream: AddrStream, config: Arc<ServerConfig>) -> TlsStream {
+        let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
+        TlsStream {
+            state: State::Handshaking(accept),
+        }
+    }
+}
+
+impl AsyncRead for TlsStream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut ReadBuf,
+    ) -> Poll<io::Result<()>> {
+        let pin = self.get_mut();
+        match pin.state {
+            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+                Ok(mut stream) => {
+                    let result = Pin::new(&mut stream).poll_read(cx, buf);
+                    pin.state = State::Streaming(stream);
+                    result
+                }
+                Err(err) => Poll::Ready(Err(err)),
+            },
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
+        }
+    }
+}
+
+impl AsyncWrite for TlsStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        let pin = self.get_mut();
+        match pin.state {
+            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+                Ok(mut stream) => {
+                    let result = Pin::new(&mut stream).poll_write(cx, buf);
+                    pin.state = State::Streaming(stream);
+                    result
+                }
+                Err(err) => Poll::Ready(Err(err)),
+            },
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.state {
+            State::Handshaking(_) => Poll::Ready(Ok(())),
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_flush(cx),
+        }
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.state {
+            State::Handshaking(_) => Poll::Ready(Ok(())),
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
+        }
+    }
+}
+
+pub struct TlsAcceptor {
+    config: Arc<ServerConfig>,
+    incoming: AddrIncoming,
+}
+
+impl TlsAcceptor {
+    pub fn new(config: Arc<ServerConfig>, incoming: AddrIncoming) -> TlsAcceptor {
+        TlsAcceptor { config, incoming }
+    }
+}
+
+impl Accept for TlsAcceptor {
+    type Conn = TlsStream;
     type Error = io::Error;
 
     fn poll_accept(
-        mut self: core::pin::Pin<&mut Self>,
-        cx: &mut core::task::Context,
-    ) -> core::task::Poll<Option<Result<Self::Conn, Self::Error>>> {
-        self.acceptor.as_mut().poll_next(cx)
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+        let pin = self.get_mut();
+        match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
+            Some(Ok(sock)) => Poll::Ready(Some(Ok(TlsStream::new(sock, pin.config.clone())))),
+            Some(Err(e)) => Poll::Ready(Some(Err(e))),
+            None => Poll::Ready(None),
+        }
     }
+}
+
+// Custom echo service, handling two different routes and a
+// catch-all 404 responder.
+async fn echo(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
+    let mut response = Response::new(Body::empty());
+    match (req.method(), req.uri().path()) {
+        // Help route.
+        (&Method::GET, "/") => {
+            *response.body_mut() = Body::from("Try POST /echo\n");
+        }
+        // Echo service route.
+        (&Method::POST, "/echo") => {
+            *response.body_mut() = req.into_body();
+        }
+        // Catch-all 404.
+        _ => {
+            *response.status_mut() = StatusCode::NOT_FOUND;
+        }
+    };
+    Ok(response)
+}
+
+// Load public certificate from file.
+fn load_certs(filename: &str) -> io::Result<Vec<rustls::Certificate>> {
+    // Open certificate file.
+    let certfile = fs::File::open(filename)
+        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
+    let mut reader = io::BufReader::new(certfile);
+
+    // Load and return certificate.
+    let certs = rustls_pemfile::certs(&mut reader)
+        .map_err(|_| error("failed to load certificate".into()))?;
+    Ok(certs
+        .into_iter()
+        .map(rustls::Certificate)
+        .collect())
+}
+
+// Load private key from file.
+fn load_private_key(filename: &str) -> io::Result<rustls::PrivateKey> {
+    // Open keyfile.
+    let keyfile = fs::File::open(filename)
+        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
+    let mut reader = io::BufReader::new(keyfile);
+
+    // Load and return a single private key.
+    let keys = rustls_pemfile::rsa_private_keys(&mut reader)
+        .map_err(|_| error("failed to load private key".into()))?;
+    if keys.len() != 1 {
+        return Err(error("expected a single private key".into()));
+    }
+
+    Ok(rustls::PrivateKey(keys[0].clone()))
 }
