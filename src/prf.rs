@@ -17,15 +17,17 @@ fn p_hash(length: usize, secret: &[u8], seed: &[u8]) -> BytesMut {
     let mut buf = BytesMut::with_capacity(length);
     let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, secret);
     // A(0) = seed
-    let a = hmac::sign(&hmac_key, seed);
+    let mut a = hmac::sign(&hmac_key, seed);
 
-    while length < buf.len() {
+    while buf.len() < length {
         // A(i) = HMAC_hash(secret, A(i-1))
-        let a = hmac::sign(&hmac_key, a.as_ref());
+        let a_current = hmac::sign(&hmac_key, a.as_ref());
         // P_hash[i] = HMAC_hash(secret, A(i) + seed)
         let p = hmac::sign(&hmac_key, [a.as_ref(), seed].concat().as_ref());
+        a = a_current;
         buf.extend_from_slice(p.as_ref());
     }
+
     buf.resize(length, 0);
     buf
 }
