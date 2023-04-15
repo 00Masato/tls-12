@@ -69,7 +69,7 @@ struct Random {
 //                   Extension extensions<0..2^16-1>;
 //           };
 //       } ClientHello;
-struct ClientHello {
+pub struct ClientHello {
     client_hello: ProtocolVersion,
     random: Random,
     session_id: SessionId,
@@ -79,7 +79,7 @@ struct ClientHello {
 }
 
 impl ClientHello {
-    fn new() -> Self {
+    pub fn new() -> Self {
         ClientHello {
             client_hello: ProtocolVersion {
                 major: 0x03,
@@ -97,5 +97,20 @@ impl ClientHello {
             compression_methods: vec![0; 1],
             extensions: vec![0; 2],
         }
+    }
+
+    // encode ClientHello type to bytes
+    pub fn encode(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.push(self.client_hello.major);
+        buf.push(self.client_hello.minor);
+        buf.extend_from_slice(&self.random.gmt_unix_time.to_be_bytes());
+        buf.extend_from_slice(&self.random.random_bytes);
+        buf.push(self.session_id.len as u8);
+        buf.extend_from_slice(&self.session_id.data);
+        buf.extend_from_slice(&self.cipher_suites);
+        buf.extend_from_slice(&self.compression_methods);
+        buf.extend_from_slice(&self.extensions);
+        buf
     }
 }
