@@ -1,4 +1,7 @@
+use rustls::internal::msgs::codec::Codec;
+use rustls::internal::msgs::enums::ECPointFormat::ANSIX962CompressedPrime;
 use rustls::internal::msgs::handshake::ClientExtension;
+use rustls::SignatureScheme::RSA_PSS_SHA256;
 use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
 
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#6-2--Record-Layer
@@ -76,7 +79,7 @@ pub struct ClientHello {
     session_id: SessionId,
     cipher_suites: Vec<u8>,
     compression_methods: Vec<u8>,
-    extensions: Vec<u8>,
+    extensions: Vec<ClientExtension>,
 }
 
 impl ClientHello {
@@ -98,7 +101,14 @@ impl ClientHello {
             // TLS_RSA_WITH_AES_128_GCM_SHA256
             cipher_suites: vec![0x00, 0x9c],
             compression_methods: vec![0; 1],
-            extensions: vec![0; 2],
+            // I referred to the extension when connecting with openssl
+            // done command is `openssl s_client -connect 127.0.0.1:1337 -tls1_2 < /dev/null`
+            extensions: vec![
+                // ec_point_formats
+                ClientExtension::ECPointFormats(vec![ANSIX962CompressedPrime; 1]),
+                // signature_algorithms
+                ClientExtension::SignatureAlgorithms(vec![RSA_PSS_SHA256; 1]),
+            ]
         }
     }
 
@@ -113,7 +123,10 @@ impl ClientHello {
         buf.extend_from_slice(&self.session_id.data);
         buf.extend_from_slice(&self.cipher_suites);
         buf.extend_from_slice(&self.compression_methods);
-        buf.extend_from_slice(&self.extensions);
+        let extensions = &self.extensions;
+        for extension in extensions {
+            buf.extend_from_slice(&extension.get_encoding());
+        }
         buf
     }
 }
