@@ -1,3 +1,4 @@
+use rustls::internal::msgs::handshake::ClientExtension;
 use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
 
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#6-2--Record-Layer
@@ -81,6 +82,7 @@ pub struct ClientHello {
 impl ClientHello {
     pub fn new() -> Self {
         ClientHello {
+            // TLS 1.2
             client_hello: ProtocolVersion {
                 major: 0x03,
                 minor: 0x03,
@@ -93,7 +95,8 @@ impl ClientHello {
                 len: 0,
                 data: [0; 32],
             },
-            cipher_suites: vec![0; 2],
+            // TLS_RSA_WITH_AES_128_GCM_SHA256
+            cipher_suites: vec![0x00, 0x9c],
             compression_methods: vec![0; 1],
             extensions: vec![0; 2],
         }
