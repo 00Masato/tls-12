@@ -20,6 +20,7 @@ struct SessionId {
     data: [u8; 32],
 }
 
+// Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#7-2--Alert-Protocol
 // struct {
 //           AlertLevel level;
 //           AlertDescription description;
@@ -29,6 +30,7 @@ struct Alert {
     description: AlertDescription,
 }
 
+// Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#7-4--Handshake-Protocol
 // struct {
 //           HandshakeType msg_type;    /* handshake type */
 //           uint24 length;             /* bytes in message */
@@ -51,6 +53,7 @@ struct HandShake {
     body: Vec<u8>,
 }
 
+// Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#A-4-1--Hello-Messages
 // struct {
 //              uint32 gmt_unix_time;
 //              opaque random_bytes[28];
@@ -60,6 +63,7 @@ struct Random {
     random_bytes: Vec<u8>,
 }
 
+// Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#7-4-1-2--Client-Hello
 //  struct {
 //           ProtocolVersion client_version;
 //           Random random;
