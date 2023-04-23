@@ -65,6 +65,11 @@ impl HandshakePayload {
 
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
+        bytes.push(0x16);
+        bytes.push(0x03);
+        bytes.push(0x01);
+        bytes.push(0x00);
+        bytes.push(0x58);
         match self.msg_type {
             ClientHello => {
                 bytes.push(0x01);
