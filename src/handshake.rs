@@ -1,8 +1,9 @@
 use rustls::internal::msgs::codec::Codec;
 use rustls::internal::msgs::enums::ECPointFormat::ANSIX962CompressedPrime;
-use rustls::internal::msgs::handshake::ClientExtension;
+use rustls::internal::msgs::handshake::{ClientExtension, ServerExtension};
 use rustls::SignatureScheme::RSA_PSS_SHA256;
 use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
+use crate::enums::HandshakeType::ClientHello;
 
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#6-2--Record-Layer
 // struct {
@@ -47,10 +48,33 @@ struct Alert {
 //               case finished:            Finished;
 //           } body;
 //       } Handshake;
-struct HandShake {
+pub struct HandshakePayload {
     msg_type: HandshakeType,
     length: u32,
     body: Vec<u8>,
+}
+
+impl HandshakePayload {
+    pub fn client_hello() -> Self {
+        HandshakePayload {
+            msg_type: ClientHello,
+            length: ClientHelloPayload::new().encode().len() as u32,
+            body: ClientHelloPayload::new().encode(),
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        match self.msg_type {
+            ClientHello => {
+                bytes.push(0x01);
+            }
+            _ => {}
+        }
+        self.length.encode(&mut bytes);
+        bytes.extend(&self.body);
+        bytes
+    }
 }
 
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#A-4-1--Hello-Messages
@@ -77,7 +101,7 @@ struct Random {
 //                   Extension extensions<0..2^16-1>;
 //           };
 //       } ClientHello;
-pub struct ClientHello {
+pub struct ClientHelloPayload {
     client_hello: ProtocolVersion,
     random: Random,
     session_id: SessionId,
@@ -86,9 +110,9 @@ pub struct ClientHello {
     extensions: Vec<ClientExtension>,
 }
 
-impl ClientHello {
+impl ClientHelloPayload {
     pub fn new() -> Self {
-        ClientHello {
+        ClientHelloPayload {
             // TLS 1.2
             client_hello: ProtocolVersion {
                 major: 0x03,
@@ -132,5 +156,34 @@ impl ClientHello {
             buf.extend_from_slice(&extension.get_encoding());
         }
         buf
+    }
+}
+
+// https://tex2e.github.io/rfc-translater/html/rfc5246.html#7-4-1-3--Server-Hello
+// struct {
+//     ProtocolVersion server_version;
+//     Random random;
+//     SessionID session_id;
+//     CipherSuite cipher_suite;
+//     CompressionMethod compression_method;
+//     select (extensions_present) {
+//     case false:
+//     struct {};
+//     case true:
+//     Extension extensions<0..2^16-1>;
+//     };
+// } ServerHello;
+struct ServerHello {
+    server_version: ProtocolVersion,
+    random: Random,
+    session_id: SessionId,
+    cipher_suite: Vec<u8>,
+    compression_method: Vec<u8>,
+    extensions: Vec<ServerExtension>,
+}
+
+impl ServerHello {
+    pub fn decode() -> Self {
+        todo!()
     }
 }
