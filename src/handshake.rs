@@ -76,7 +76,10 @@ impl HandshakePayload {
             }
             _ => {}
         }
-        self.length.encode(&mut bytes);
+        // length to Vec<u8> size 3(u24)
+        let length_u24 = self.length.to_be_bytes()[1..].to_vec();
+        bytes.extend(&length_u24);
+
         bytes.extend(&self.body);
         bytes
     }
