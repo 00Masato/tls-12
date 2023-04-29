@@ -69,7 +69,7 @@ impl HandshakePayload {
         bytes.push(0x03);
         bytes.push(0x01);
         bytes.push(0x00);
-        bytes.push(0x58);
+        bytes.push((&self.body.len() + 4) as u8);
         match self.msg_type {
             ClientHello => {
                 bytes.push(0x01);
@@ -156,13 +156,16 @@ impl ClientHelloPayload {
         buf.extend_from_slice(&self.random.gmt_unix_time.to_be_bytes());
         buf.extend_from_slice(&self.random.random_bytes);
         buf.push(self.session_id.len as u8);
-        buf.extend_from_slice(&self.session_id.data);
+        // cipher_suites length to Vec<u8> size 2(u16)
+        let cipher_suites_len: Vec<u8> = (2 as u16).to_be_bytes()[..2].to_vec();
+        buf.extend(&cipher_suites_len);
         buf.extend_from_slice(&self.cipher_suites);
         buf.extend_from_slice(&self.compression_methods);
         let extensions = &self.extensions;
         for extension in extensions {
             buf.extend_from_slice(&extension.get_encoding());
         }
+        buf.extend_from_slice(&self.random.random_bytes);
         buf
     }
 }
