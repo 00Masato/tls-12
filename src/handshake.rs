@@ -160,6 +160,8 @@ impl ClientHelloPayload {
         let cipher_suites_len: Vec<u8> = (2 as u16).to_be_bytes()[..2].to_vec();
         buf.extend(&cipher_suites_len);
         buf.extend_from_slice(&self.cipher_suites);
+        // compression length
+        buf.push(self.compression_methods.len() as u8);
         buf.extend_from_slice(&self.compression_methods);
         let extensions = &self.extensions;
         for extension in extensions {
