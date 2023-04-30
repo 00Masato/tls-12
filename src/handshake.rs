@@ -164,6 +164,9 @@ impl ClientHelloPayload {
         buf.push(self.compression_methods.len() as u8);
         buf.extend_from_slice(&self.compression_methods);
         let extensions = &self.extensions;
+        // extensions length to Vec<u8> size 2(u16)
+        buf.push(0x00);
+        buf.push(0x0e);
         for extension in extensions {
             buf.extend_from_slice(&extension.get_encoding());
         }
