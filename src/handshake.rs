@@ -134,8 +134,8 @@ impl ClientHelloPayload {
                 len: 0,
                 data: [0; 32],
             },
-            // TLS_RSA_WITH_AES_128_GCM_SHA256
-            cipher_suites: vec![0x00, 0x9c],
+            // TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+            cipher_suites: vec![0xc0, 0x2c],
             compression_methods: vec![0; 1],
             // I referred to the extension when connecting with openssl
             // done command is `openssl s_client -connect 127.0.0.1:1337 -tls1_2 < /dev/null`
@@ -170,7 +170,6 @@ impl ClientHelloPayload {
         for extension in extensions {
             buf.extend_from_slice(&extension.get_encoding());
         }
-        buf.extend_from_slice(&self.random.random_bytes);
         buf
     }
 }
