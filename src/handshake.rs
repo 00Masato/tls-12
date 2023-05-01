@@ -156,7 +156,8 @@ impl ClientHelloPayload {
                         SignatureScheme::RSA_PKCS1_SHA512,
                         SignatureScheme::RSA_PKCS1_SHA384,
                         SignatureScheme::RSA_PKCS1_SHA256,
-                ]),
+                    ]
+                ),
             ]
         }
     }
