@@ -1,6 +1,7 @@
 use rustls::internal::msgs::codec::Codec;
 use rustls::internal::msgs::enums::ECPointFormat::ANSIX962CompressedPrime;
 use rustls::internal::msgs::handshake::{ClientExtension, ServerExtension};
+use rustls::SignatureScheme;
 use rustls::SignatureScheme::RSA_PSS_SHA256;
 use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
 use crate::enums::HandshakeType::ClientHello;
@@ -143,7 +144,19 @@ impl ClientHelloPayload {
                 // ec_point_formats
                 ClientExtension::ECPointFormats(vec![ANSIX962CompressedPrime; 1]),
                 // signature_algorithms
-                ClientExtension::SignatureAlgorithms(vec![RSA_PSS_SHA256; 1]),
+                ClientExtension::SignatureAlgorithms(
+                    // Ref: https://github.com/rustls/rustls/blob/main/rustls/src/verify.rs#L420
+                    vec![
+                        SignatureScheme::ECDSA_NISTP384_SHA384,
+                        SignatureScheme::ECDSA_NISTP256_SHA256,
+                        SignatureScheme::ED25519,
+                        SignatureScheme::RSA_PSS_SHA512,
+                        SignatureScheme::RSA_PSS_SHA384,
+                        SignatureScheme::RSA_PSS_SHA256,
+                        SignatureScheme::RSA_PKCS1_SHA512,
+                        SignatureScheme::RSA_PKCS1_SHA384,
+                        SignatureScheme::RSA_PKCS1_SHA256,
+                ]),
             ]
         }
     }
