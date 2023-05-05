@@ -159,7 +159,7 @@ impl ClientHelloPayload {
                     ]
                 ),
                 // supported_groups(elliptic_curves)
-                ClientExtension::NamedGroups(vec![NamedGroup::secp521r1]),
+                ClientExtension::NamedGroups(vec![NamedGroup::secp384r1, NamedGroup::secp521r1]),
             ]
         }
     }
@@ -182,7 +182,7 @@ impl ClientHelloPayload {
         let extensions = &self.extensions;
         // extensions length to Vec<u8> size 2(u16)
         buf.push(0x00);
-        buf.push(0x27);
+        buf.push(0x29);
         for extension in extensions {
             buf.extend_from_slice(&extension.get_encoding());
         }
