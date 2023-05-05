@@ -1,7 +1,7 @@
 use rustls::internal::msgs::codec::Codec;
-use rustls::internal::msgs::enums::ECPointFormat::ANSIX962CompressedPrime;
+use rustls::internal::msgs::enums::ECPointFormat::{ANSIX962CompressedPrime, Uncompressed};
 use rustls::internal::msgs::handshake::{ClientExtension, ServerExtension};
-use rustls::SignatureScheme;
+use rustls::{NamedGroup, SignatureScheme};
 use rustls::SignatureScheme::RSA_PSS_SHA256;
 use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
 use crate::enums::HandshakeType::ClientHello;
@@ -142,7 +142,7 @@ impl ClientHelloPayload {
             // done command is `openssl s_client -connect 127.0.0.1:1337 -tls1_2 < /dev/null`
             extensions: vec![
                 // ec_point_formats
-                ClientExtension::ECPointFormats(vec![ANSIX962CompressedPrime; 1]),
+                ClientExtension::ECPointFormats(vec![Uncompressed, ANSIX962CompressedPrime]),
                 // signature_algorithms
                 ClientExtension::SignatureAlgorithms(
                     // Ref: https://github.com/rustls/rustls/blob/main/rustls/src/verify.rs#L420
@@ -158,6 +158,8 @@ impl ClientHelloPayload {
                         SignatureScheme::RSA_PKCS1_SHA256,
                     ]
                 ),
+                // supported_groups(elliptic_curves)
+                ClientExtension::NamedGroups(vec![NamedGroup::secp521r1]),
             ]
         }
     }
@@ -180,7 +182,7 @@ impl ClientHelloPayload {
         let extensions = &self.extensions;
         // extensions length to Vec<u8> size 2(u16)
         buf.push(0x00);
-        buf.push(0x1e);
+        buf.push(0x27);
         for extension in extensions {
             buf.extend_from_slice(&extension.get_encoding());
         }
