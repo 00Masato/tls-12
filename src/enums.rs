@@ -1,11 +1,11 @@
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#7--The-TLS-Handshaking-Protocols
-
 // enum { warning(1), fatal(2), (255) } AlertLevel;
 pub enum AlertLevel {
     Warning,
     Fatal,
 }
 
+// Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#7--The-TLS-Handshaking-Protocols
 // enum {
 //           close_notify(0),
 //           unexpected_message(10),
@@ -61,14 +61,37 @@ pub enum AlertDescription {
     UnsupportedExtension,
 }
 
+// Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#A-1--Record-Layer
+// enum {
+//     change_cipher_spec(20), alert(21), handshake(22),
+//     application_data(23), (255)
+// } ContentType;
+pub enum ContentType {
+    ChangeCipherSpec,
+    Alert,
+    Handshake,
+    ApplicationData,
+}
+
+impl ContentType {
+    pub fn encode(&self) -> u8 {
+        match self {
+            Self::ChangeCipherSpec => 0x14,
+            Self::Alert => 0x15,
+            Self::Handshake => 0x16,
+            Self::ApplicationData => 0x17,
+            _ => 0xff,
+        }
+    }
+}
 
 // enum {
-//           hello_request(0), client_hello(1), server_hello(2),
-//           certificate(11), server_key_exchange (12),
-//           certificate_request(13), server_hello_done(14),
-//           certificate_verify(15), client_key_exchange(16),
-//           finished(20), (255)
-//       } HandshakeType;
+//     hello_request(0), client_hello(1), server_hello(2),
+//     certificate(11), server_key_exchange (12),
+//     certificate_request(13), server_hello_done(14),
+//     certificate_verify(15), client_key_exchange(16),
+//     finished(20), (255)
+// } HandshakeType;
 pub enum HandshakeType {
     HelloRequest,
     ClientHello,
@@ -80,4 +103,22 @@ pub enum HandshakeType {
     CertificateVerify,
     ClientKeyExchange,
     Finished,
+}
+
+impl HandshakeType {
+    pub fn encode(&self) -> u8 {
+        match self {
+            Self::HelloRequest => 0x00,
+            Self::ClientHello => 0x01,
+            Self::ServerHello => 0x02,
+            Self::Certificate => 0x0b,
+            Self::ServerKeyExchange => 0x0c,
+            Self::CertificateRequest => 0x0d,
+            Self::ServerHelloDone => 0x0e,
+            Self::CertificateVerify => 0x0f,
+            Self::ClientKeyExchange => 0x10,
+            Self::Finished => 0x14,
+            _ => 0xff,
+        }
+    }
 }

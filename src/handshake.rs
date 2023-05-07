@@ -3,18 +3,11 @@ use rustls::internal::msgs::enums::ECPointFormat::{ANSIX962CompressedPrime, Unco
 use rustls::internal::msgs::handshake::{ClientExtension, ServerExtension};
 use rustls::{NamedGroup, SignatureScheme};
 use rustls::SignatureScheme::RSA_PSS_SHA256;
-use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
+use crate::enums::{AlertDescription, AlertLevel, ContentType, HandshakeType};
+use crate::enums::ContentType::Handshake;
 use crate::enums::HandshakeType::ClientHello;
-
-// Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#6-2--Record-Layer
-// struct {
-//           uint8 major;
-//           uint8 minor;
-//       } ProtocolVersion;
-struct ProtocolVersion {
-    major: u8,
-    minor: u8,
-}
+use crate::protocol_version::ProtocolVersion;
+use crate::tls_plaintext::TLSPlaintext;
 
 // Ref: https://github.com/rustls/rustls/blob/main/rustls/src/msgs/handshake.rs#L108-L111
 struct SessionId {
@@ -66,18 +59,19 @@ impl HandshakePayload {
 
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes = Vec::new();
-        bytes.push(0x16);
-        bytes.push(0x03);
-        bytes.push(0x01);
-        bytes.push(0x00);
-        bytes.push((&self.body.len() + 4) as u8);
-        match self.msg_type {
-            ClientHello => {
-                bytes.push(0x01);
-            }
-            _ => {}
-        }
-        // length to Vec<u8> size 3(u24)
+
+        // encode TLSPlainText
+        let protocol_version = ProtocolVersion::new(1, 2);
+        let tls_plaintext = TLSPlaintext::new(
+            Handshake,
+            protocol_version,
+            (&self.body.len() + 4) as u16
+        );
+        bytes.extend(&tls_plaintext.encode());
+
+        // encode HandshakePayload
+        bytes.push(*&self.msg_type.encode());
+        // size 3 Vec<u8> (u24)
         let length_u24 = self.length.to_be_bytes()[1..].to_vec();
         bytes.extend(&length_u24);
 
