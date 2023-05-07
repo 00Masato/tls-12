@@ -26,9 +26,8 @@ impl TLSPlaintext {
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes: Vec<u8> = Vec::new();
         bytes.push(self.content_type.encode());
-        bytes.append(&mut self.version.encode());
-        bytes.push((self.length >> 8) as u8);
-        bytes.push(self.length as u8);
+        bytes.extend(self.version.encode());
+        bytes.extend(self.length.to_be_bytes());
         bytes
     }
 }

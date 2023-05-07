@@ -12,10 +12,7 @@ pub struct ProtocolVersion {
 
 impl ProtocolVersion {
     pub fn new(major: u8, minor: u8) -> Self {
-        ProtocolVersion {
-            major,
-            minor,
-        }
+        ProtocolVersion { major, minor }
     }
 
     pub fn encode(&self) -> Vec<u8> {

@@ -1,8 +1,7 @@
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#5--HMAC-and-the-Pseudorandom-Function
 
-
-use ring::hmac;
 use bytes::{Bytes, BytesMut};
+use ring::hmac;
 
 // Ref: https://github.com/rustls/rustls/blob/main/rustls/src/tls12/prf.rs#L33-L36
 pub fn prf(length: usize, secret: &[u8], seed: &[u8], label: &[u8]) -> BytesMut {
