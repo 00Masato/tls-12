@@ -6,6 +6,8 @@ use crate::protocol_version::ProtocolVersion;
 use crate::tls_plaintext::TLSPlaintext;
 use rustls::internal::msgs::codec::Codec;
 use rustls::internal::msgs::handshake::{ServerExtension};
+use crate::enums;
+use crate::server_hello::ServerHelloPayload;
 
 // Ref: https://github.com/rustls/rustls/blob/main/rustls/src/msgs/handshake.rs#L108-L111
 pub struct SessionId {
@@ -74,6 +76,37 @@ impl HandshakePayload {
         bytes.extend(&self.body);
 
         bytes
+    }
+
+    pub fn read(buffer: Vec<u8>) -> Self {
+        let handshake_type_byte = buffer[2];
+        let typ = HandshakeType::read(handshake_type_byte);
+        match typ {
+             HandshakeType::ServerHello => {
+                 let server_hello_payload = ServerHelloPayload::read(buffer[4..].to_vec());
+                 todo!()
+            },
+            HandshakeType::Certificate => todo!(),
+            HandshakeType::ServerKeyExchange => todo!(),
+            HandshakeType::ServerHelloDone => todo!(),
+            _ => todo!(),
+        }
+    }
+
+
+    pub fn parse_packet(data: &[u8]) -> Vec<Vec<u8>> {
+        let mut result = Vec::new();
+        // TLSPlaintext delimiter
+        let delimiter = b"\x16\x03\x03";
+
+        let mut start = 0;
+        while let Some(offset) = data[start..].windows(delimiter.len()).position(|window| window == delimiter) {
+            result.push(data[start..start + offset].to_vec());
+            start += offset + delimiter.len();
+        }
+        result.push(data[start..].to_vec());
+
+        result
     }
 }
 

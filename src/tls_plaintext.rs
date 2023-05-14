@@ -30,4 +30,8 @@ impl TLSPlaintext {
         bytes.extend(self.length.to_be_bytes());
         bytes
     }
+
+    pub fn read(buffer: Vec<u8>) -> Self {
+        todo!()
+    }
 }

@@ -103,6 +103,7 @@ pub enum HandshakeType {
     CertificateVerify,
     ClientKeyExchange,
     Finished,
+    Unknown,
 }
 
 impl HandshakeType {
@@ -119,6 +120,22 @@ impl HandshakeType {
             Self::ClientKeyExchange => 0x10,
             Self::Finished => 0x14,
             _ => 0xff,
+        }
+    }
+
+    pub fn read(byte: u8) -> Self {
+        match byte {
+            0x00 => Self::HelloRequest,
+            0x01 => Self::ClientHello,
+            0x02 => Self::ServerHello,
+            0x0b => Self::Certificate,
+            0x0c => Self::ServerKeyExchange,
+            0x0d => Self::CertificateRequest,
+            0x0e => Self::ServerHelloDone,
+            0x0f => Self::CertificateVerify,
+            0x10 => Self::ClientKeyExchange,
+            0x14 => Self::Finished,
+            _ => Self::Unknown,
         }
     }
 }
