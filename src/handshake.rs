@@ -6,6 +6,7 @@ use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
 use crate::protocol_version::ProtocolVersion;
 use crate::server_hello::ServerHelloPayload;
 use crate::tls_plaintext::TLSPlaintext;
+use crate::certificate::Certificate;
 use rustls::internal::msgs::codec::Codec;
 use rustls::internal::msgs::handshake::ServerExtension;
 
@@ -86,6 +87,11 @@ impl HandshakePayload {
         let server_hello_payload = ServerHelloPayload::read(buffer[6..].to_vec());
 
         server_hello_payload
+    }
+
+    pub fn read_certificate(buffer: Vec<u8>) -> Certificate {
+        let buffer = buffer;
+        Certificate { certificate_list: buffer }
     }
 
     pub fn parse_packet(data: &[u8]) -> Vec<Vec<u8>> {
