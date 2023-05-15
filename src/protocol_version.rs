@@ -5,6 +5,7 @@
 // } ProtocolVersion;
 //
 // This ProtocolVersion support only TLS1.2.
+#[derive(Debug)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,

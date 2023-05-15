@@ -1,3 +1,5 @@
+use crate::server_hello::ServerHelloPayload;
+
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#7--The-TLS-Handshaking-Protocols
 // enum { warning(1), fatal(2), (255) } AlertLevel;
 pub enum AlertLevel {
@@ -92,6 +94,7 @@ impl ContentType {
 //     certificate_verify(15), client_key_exchange(16),
 //     finished(20), (255)
 // } HandshakeType;
+#[derive(Debug)]
 pub enum HandshakeType {
     HelloRequest,
     ClientHello,
@@ -108,17 +111,18 @@ pub enum HandshakeType {
 
 impl HandshakeType {
     pub fn encode(&self) -> u8 {
+        use self::HandshakeType::*;
         match self {
-            Self::HelloRequest => 0x00,
-            Self::ClientHello => 0x01,
-            Self::ServerHello => 0x02,
-            Self::Certificate => 0x0b,
-            Self::ServerKeyExchange => 0x0c,
-            Self::CertificateRequest => 0x0d,
-            Self::ServerHelloDone => 0x0e,
-            Self::CertificateVerify => 0x0f,
-            Self::ClientKeyExchange => 0x10,
-            Self::Finished => 0x14,
+            HelloRequest => 0x00,
+            ClientHello => 0x01,
+            ServerHello => 0x02,
+            Certificate => 0x0b,
+            ServerKeyExchange => 0x0c,
+            CertificateRequest => 0x0d,
+            ServerHelloDone => 0x0e,
+            CertificateVerify => 0x0f,
+            ClientKeyExchange => 0x10,
+            Finished => 0x14,
             _ => 0xff,
         }
     }

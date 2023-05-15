@@ -1,7 +1,7 @@
-use byteorder::{ByteOrder, BigEndian};
-use rustls::internal::msgs::handshake::ServerExtension;
 use crate::handshake::{Random, SessionId};
 use crate::protocol_version::ProtocolVersion;
+use byteorder::{BigEndian, ByteOrder};
+use rustls::internal::msgs::handshake::ServerExtension;
 
 // https://tex2e.github.io/rfc-translater/html/rfc5246.html#7-4-1-3--Server-Hello
 // struct {
@@ -17,6 +17,7 @@ use crate::protocol_version::ProtocolVersion;
 //     Extension extensions<0..2^16-1>;
 //     };
 // } ServerHello;
+#[derive(Debug)]
 pub struct ServerHelloPayload {
     server_version: ProtocolVersion,
     random: Random,
@@ -32,15 +33,15 @@ impl ServerHelloPayload {
             major: buf[0],
             minor: buf[1],
         };
-        let gmt_unix_time = BigEndian::read_u32(&buf[2..5]);
+        let gmt_unix_time = BigEndian::read_u32(&buf[2..6]);
         let random = Random {
             gmt_unix_time,
-            random_bytes: buf[5..34].to_vec(),
+            random_bytes: buf[6..34].to_vec(),
         };
         let session_id_len = buf[34] as usize;
         let session_id_end = 35 + session_id_len;
         let session_id = SessionId {
-            len: buf[34] as usize,
+            len: session_id_len,
             data: buf[35..session_id_end].try_into().unwrap(),
         };
         let cipher_suite = buf[session_id_end..session_id_end + 2].to_vec();
