@@ -1,3 +1,5 @@
+use byteorder::{BigEndian, ByteOrder};
+use chrono::{DateTime, Utc};
 use crate::handshake::{Random, SessionId};
 use crate::protocol_version::ProtocolVersion;
 use rustls::internal::msgs::codec::Codec;
@@ -37,7 +39,7 @@ impl ClientHelloPayload {
                 minor: 0x03,
             },
             random: Random {
-                gmt_unix_time: 0,
+                gmt_unix_time: Utc::now(),
                 random_bytes: vec![0; 28],
             },
             session_id: SessionId {
@@ -78,7 +80,10 @@ impl ClientHelloPayload {
         let mut buf = Vec::new();
         buf.push(self.client_hello.major);
         buf.push(self.client_hello.minor);
-        buf.extend_from_slice(&self.random.gmt_unix_time.to_be_bytes());
+        let gmt_unix_time = &self.random.gmt_unix_time;
+        let mut gmt_unix_time_buf = [0; 4];
+        BigEndian::write_u32(&mut gmt_unix_time_buf, gmt_unix_time.timestamp() as u32);
+        buf.extend_from_slice(gmt_unix_time_buf.as_ref());
         buf.extend_from_slice(&self.random.random_bytes);
         buf.push(self.session_id.len as u8);
         // cipher_suites length to Vec<u8> size 2(u16)

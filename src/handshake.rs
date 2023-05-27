@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use crate::client_hello::ClientHelloPayload;
 use crate::enums;
 use crate::enums::ContentType::Handshake;
@@ -84,14 +85,22 @@ impl HandshakePayload {
     }
 
     pub fn read_server_hello(buffer: Vec<u8>) -> ServerHelloPayload {
-        let server_hello_payload = ServerHelloPayload::read(buffer[6..].to_vec());
+        let len = bytes_to_u32_be(&buffer[0..2]);
+        let server_hello_payload = ServerHelloPayload::read(buffer[6..].to_vec(), len);
 
         server_hello_payload
     }
 
     pub fn read_certificate(buffer: Vec<u8>) -> Certificate {
         let buffer = buffer;
-        Certificate { certificate_list: buffer }
+        let len = bytes_to_u32_be(&buffer[3..6]);
+        let certificate = Certificate::read(buffer[12..].to_vec(), len);
+
+        certificate
+    }
+
+    pub fn read_server_key_exchange(buffer: Vec<u8>) -> Vec<u8> {
+        todo!()
     }
 
     pub fn parse_packet(data: &[u8]) -> Vec<Vec<u8>> {
@@ -113,6 +122,14 @@ impl HandshakePayload {
     }
 }
 
+pub fn bytes_to_u32_be(bytes: &[u8]) -> u32 {
+    let mut result = 0;
+    for byte in bytes {
+        result = (result << 8) + *byte as u32;
+    }
+    result
+}
+
 // Ref: https://tex2e.github.io/rfc-translater/html/rfc5246.html#A-4-1--Hello-Messages
 // struct {
 //              uint32 gmt_unix_time;
@@ -120,6 +137,6 @@ impl HandshakePayload {
 //          } Random;
 #[derive(Debug)]
 pub struct Random {
-    pub gmt_unix_time: u32,
+    pub gmt_unix_time: DateTime<Utc>,
     pub random_bytes: Vec<u8>,
 }
