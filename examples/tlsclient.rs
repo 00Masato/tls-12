@@ -1,7 +1,7 @@
+use rustls::internal::msgs::handshake::HandshakePayload::Certificate;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::os::fd::AsFd;
-use rustls::internal::msgs::handshake::HandshakePayload::Certificate;
 use tls_12::handshake::HandshakePayload;
 
 fn main() -> std::io::Result<()> {
@@ -42,15 +42,18 @@ fn main() -> std::io::Result<()> {
             }
             0x0c => {
                 println!("server key exchange");
-                // let server_key_exchange_payload =
-                //     HandshakePayload::server_key_exchange(buf[6..].to_vec());
-                // println!("{:?}", server_key_exchange_payload);
+                let server_key_exchange_payload =
+                    HandshakePayload::read_server_key_exchange(buf.to_vec());
+                println!("{:?}", server_key_exchange_payload);
+
+                // 鍵交換
+                server_key_exchange_payload.generate_shared_key();
             }
             0x0e => {
                 println!("server hello done");
-                // let server_hello_done_payload =
-                //     HandshakePayload::server_hello_done(buf[6..].to_vec());
-                // println!("{:?}", server_hello_done_payload);
+                let server_hello_done_payload =
+                    HandshakePayload::read_server_hello_done(buf[6..].to_vec());
+                println!("{:?}", server_hello_done_payload);
             }
             _ => {
                 println!("unknown");

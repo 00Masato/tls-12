@@ -29,9 +29,7 @@ impl Certificate {
         let mut buffer = &self.certificate_list;
         let res = parse_x509_certificate(buffer);
         match res {
-            Ok((rem, cert)) => {
-                true
-            }
+            Ok((rem, cert)) => true,
             Err(e) => {
                 println!("error: {:?}", e);
                 false

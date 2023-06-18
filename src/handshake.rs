@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use crate::certificate::Certificate;
 use crate::client_hello::ClientHelloPayload;
 use crate::enums;
 use crate::enums::ContentType::Handshake;
@@ -6,10 +6,12 @@ use crate::enums::HandshakeType::ClientHello;
 use crate::enums::{AlertDescription, AlertLevel, HandshakeType};
 use crate::protocol_version::ProtocolVersion;
 use crate::server_hello::ServerHelloPayload;
+use crate::server_key_exchange::ServerKeyExchange;
 use crate::tls_plaintext::TLSPlaintext;
-use crate::certificate::Certificate;
+use chrono::{DateTime, Utc};
 use rustls::internal::msgs::codec::Codec;
 use rustls::internal::msgs::handshake::ServerExtension;
+use crate::server_hello_done::ServerHelloDone;
 
 // Ref: https://github.com/rustls/rustls/blob/main/rustls/src/msgs/handshake.rs#L108-L111
 #[derive(Debug)]
@@ -49,6 +51,16 @@ struct Alert {
 pub struct HandshakePayload {
     msg_type: HandshakeType,
     length: u32,
+}
+
+// MasterSecretの情報を格納
+// ref: https://github.com/sat0ken/go-tcpip/blob/fc2b35be0ca462df93c33c22b0081c06ee4c8788/tls_type.go#L171
+#[derive(Debug)]
+pub struct MasterSecretInfo {
+    MasterSecret: Vec<u8>,
+    PreMasterSecret: Vec<u8>,
+    ClientRandom: Vec<u8>,
+    ServerRandom: Vec<u8>,
 }
 
 impl HandshakePayload {
@@ -99,8 +111,20 @@ impl HandshakePayload {
         certificate
     }
 
-    pub fn read_server_key_exchange(buffer: Vec<u8>) -> Vec<u8> {
-        todo!()
+    pub fn read_server_key_exchange(buffer: Vec<u8>) -> ServerKeyExchange {
+        let buffer = buffer;
+        let len = bytes_to_u32_be(&buffer[3..6]);
+        let server_key_exchange = ServerKeyExchange::read(buffer[6..].to_vec(), len);
+
+        server_key_exchange
+    }
+
+    pub fn read_server_hello_done(buffer: Vec<u8>) -> ServerHelloDone {
+        let buffer = buffer;
+        let len = bytes_to_u32_be(&buffer[3..6]);
+        let server_hello_done = ServerHelloDone::read(buffer[12..].to_vec(), len);
+
+        server_hello_done
     }
 
     pub fn parse_packet(data: &[u8]) -> Vec<Vec<u8>> {

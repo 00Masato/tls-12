@@ -1,10 +1,9 @@
+use crate::enums::HandshakeType;
 use crate::handshake::{Random, SessionId};
 use crate::protocol_version::ProtocolVersion;
 use byteorder::{BigEndian, ByteOrder};
-use rustls::internal::msgs::handshake::ServerExtension;
-use crate::enums::HandshakeType;
 use chrono::{TimeZone, Utc};
-
+use rustls::internal::msgs::handshake::ServerExtension;
 
 // https://tex2e.github.io/rfc-translater/html/rfc5246.html#7-4-1-3--Server-Hello
 // struct {

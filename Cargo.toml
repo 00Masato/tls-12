@@ -20,3 +20,5 @@ byteorder = "1.4.3"
 chrono = "0.4.24"
 rustls-native-certs = "0.6.2"
 x509-parser = "0.15.0"
+x25519-dalek = { version = "2.0.0-rc.2", features = ["getrandom"] }
+rand = { version = "0.8.5", features = ["getrandom"] }

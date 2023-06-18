@@ -1,7 +1,7 @@
-use byteorder::{BigEndian, ByteOrder};
-use chrono::{DateTime, Utc};
 use crate::handshake::{Random, SessionId};
 use crate::protocol_version::ProtocolVersion;
+use byteorder::{BigEndian, ByteOrder};
+use chrono::{DateTime, Utc};
 use rustls::internal::msgs::codec::Codec;
 use rustls::internal::msgs::enums::ECPointFormat::{ANSIX962CompressedPrime, Uncompressed};
 use rustls::internal::msgs::handshake::ClientExtension;
@@ -70,7 +70,7 @@ impl ClientHelloPayload {
                     ],
                 ),
                 // supported_groups(elliptic_curves)
-                ClientExtension::NamedGroups(vec![NamedGroup::secp384r1, NamedGroup::secp521r1]),
+                ClientExtension::NamedGroups(vec![NamedGroup::X25519, NamedGroup::secp521r1]),
             ],
         }
     }
